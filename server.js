@@ -42,7 +42,7 @@ app.post('/api/videoData', (req, res) => {
   }
 });
 
-// Route to upload a video file
+// Route to upload a video file to the server
 app.post('/api/uploadVideo', upload.single('video'), (req, res) => {
   if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -52,21 +52,52 @@ app.post('/api/uploadVideo', upload.single('video'), (req, res) => {
   // Access the file details
   const file = req.file;
   const originalName = file.originalname;
+  
+  // Create a unique name by appending a timestamp or UUID to the original name
+  const uniqueName = `${Date.now()}-${originalName}`;
   const savedPath = path.join(__dirname, 'uploads', file.filename);
 
-  // Rename the file to its original name
-  fs.rename(savedPath, path.join(__dirname, 'uploads', originalName), (err) => {
+  // Rename the file to the unique name
+  fs.rename(savedPath, path.join(__dirname, 'uploads', uniqueName), (err) => {
       if (err) {
           return res.status(500).json({ error: 'Failed to save file' });
       }
 
       res.status(200).json({
           message: 'File uploaded successfully',
-          fileName: originalName
+          fileName: uniqueName
       });
   });
 });
 
+// Serve static files from the 'uploads' directory
+app.use('/videos', express.static(path.join('/Users/barun/test/uploads')));
+
+// Route to retrieve and send a video file to the client
+app.get('/api/getVideos', (req, res) => {
+  const uploadsDir = path.join(__dirname, 'uploads');
+
+  // Read the 'uploads' directory or change it according to your folder name
+  fs.readdir(uploadsDir, (err, files) => {
+      if (err) {
+          console.error("Error reading 'uploads' directory:", err);
+          return res.status(500).json({ error: 'Failed to retrieve videos' });
+      }
+
+      // Filter the files to include only video files (you can add more extensions if needed)
+      const videoFiles = files.filter(file => {
+          return file.endsWith('.mp4') || file.endsWith('.webm') || file.endsWith('.mov') || file.endsWith('.avi');
+      });
+
+      // Check if there are no video files
+      if (videoFiles.length === 0) {
+        return res.status(200).json({ message: 'There are no videos available' });
+    }
+
+      console.log("Video files:", videoFiles , " sent to the client");
+      res.status(200).json(videoFiles);
+  });
+});
 
 // Start the server
 app.listen(port, () => {
